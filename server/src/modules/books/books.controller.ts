@@ -19,10 +19,16 @@ const updateBookSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-export const getBooks = async (_req: Request, res: Response, next: NextFunction) => {
+export const getBooks = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const books = await booksService.getAllBooks();
-    res.status(200).json({ ok: true, data: books });
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const search = (req.query.search as string) || '';
+    const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined;
+    const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined;
+
+    const result = await booksService.getAllBooks({ search, minPrice, maxPrice, page, limit });
+    res.status(200).json({ ok: true, data: result });
   } catch (err) {
     next(err);
   }

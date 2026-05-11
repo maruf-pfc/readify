@@ -1,4 +1,5 @@
 import { pool } from '../../config/db';
+import { AppError } from '../../utils/errorResponse';
 
 export type Book = {
   id: number;
@@ -18,12 +19,57 @@ export type NewBook = {
   is_active?: boolean;
 };
 
-export const getAllBooks = async (): Promise<Book[]> => {
-  const { rows } = await pool.query(
-    `SELECT id, title, author, price, stock, is_active, created_at 
-     FROM books WHERE is_active = true ORDER BY id ASC`
+export type BookQuery = {
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  limit?: number;
+};
+
+export const getAllBooks = async (query: BookQuery = {}): Promise<{ books: Book[]; total: number; page: number; limit: number }> => {
+  const { search = '', minPrice, maxPrice, page = 1, limit = 10 } = query;
+  const offset = (page - 1) * limit;
+
+  const conditions: string[] = ['is_active = true'];
+  const values: any[] = [];
+  let idx = 1;
+
+  if (search) {
+    conditions.push(`(title ILIKE $${idx} OR author ILIKE $${idx})`);
+    values.push(`%${search}%`);
+    idx++;
+  }
+
+  if (minPrice !== undefined) {
+    conditions.push(`price >= $${idx}`);
+    values.push(minPrice);
+    idx++;
+  }
+
+  if (maxPrice !== undefined) {
+    conditions.push(`price <= $${idx}`);
+    values.push(maxPrice);
+    idx++;
+  }
+
+  const where = `WHERE ${conditions.join(' AND ')}`;
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*) FROM books ${where}`,
+    values
   );
-  return rows;
+  const total = parseInt(countResult.rows[0].count, 10);
+
+  const { rows } = await pool.query(
+    `SELECT id, title, author, price, stock, is_active, created_at
+     FROM books ${where}
+     ORDER BY id ASC
+     LIMIT $${idx} OFFSET $${idx + 1}`,
+    [...values, limit, offset]
+  );
+
+  return { books: rows, total, page, limit };
 };
 
 export const getBookById = async (id: number): Promise<Book | null> => {
@@ -62,7 +108,7 @@ export const updateBook = async (
     values.push(payload[k]);
   });
 
-  values.push(id); // last param = id
+  values.push(id);
   const query = `UPDATE books SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING id, title, author, price, stock, is_active, created_at`;
 
   const { rows } = await pool.query(query, values);
@@ -70,7 +116,6 @@ export const updateBook = async (
 };
 
 export const deleteBook = async (id: number): Promise<Book | null> => {
-  // Soft delete: mark as inactive
   const { rows } = await pool.query(
     `UPDATE books SET is_active = false WHERE id = $1 RETURNING id, title, author, price, stock, is_active, created_at`,
     [id]

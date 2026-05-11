@@ -6,6 +6,7 @@ import {
   getOrderById,
   createOrder,
   updateOrderStatus,
+  getMyOrders,
 } from "./orders.controller";
 
 const router = Router();
@@ -27,7 +28,7 @@ const router = Router();
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of orders
+ *         description: List of all orders
  *       403:
  *         description: Forbidden
  */
@@ -35,9 +36,25 @@ router.get("/", authenticate, authorize(["ADMIN", "STAFF"]), getOrders);
 
 /**
  * @swagger
+ * /orders/mine:
+ *   get:
+ *     summary: Get current customer's own orders
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of current user's orders
+ *       401:
+ *         description: Not authenticated
+ */
+router.get("/mine", authenticate, authorize(["CUSTOMER"]), getMyOrders);
+
+/**
+ * @swagger
  * /orders/{id}:
  *   get:
- *     summary: Get order by ID
+ *     summary: Get order by ID (ADMIN/STAFF see any; CUSTOMER sees own only)
  *     tags: [Orders]
  *     security:
  *       - bearerAuth: []
@@ -51,10 +68,10 @@ router.get("/", authenticate, authorize(["ADMIN", "STAFF"]), getOrders);
  *     responses:
  *       200:
  *         description: Order data
+ *       403:
+ *         description: Forbidden (CUSTOMER trying to access another user's order)
  *       404:
  *         description: Order not found
- *       403:
- *         description: Forbidden
  */
 router.get(
   "/:id",
@@ -87,16 +104,21 @@ router.get(
  *                   required:
  *                     - book_id
  *                     - quantity
+ *                     - price
  *                   properties:
  *                     book_id:
  *                       type: integer
  *                     quantity:
  *                       type: integer
+ *                     price:
+ *                       type: number
  *     responses:
  *       201:
  *         description: Order created successfully
  *       400:
- *         description: Bad request
+ *         description: Bad request (e.g. insufficient stock)
+ *       404:
+ *         description: Book not found
  */
 router.post("/", authenticate, authorize(["CUSTOMER"]), createOrder);
 
@@ -131,7 +153,7 @@ router.post("/", authenticate, authorize(["CUSTOMER"]), createOrder);
  *       200:
  *         description: Order status updated
  *       400:
- *         description: Bad request
+ *         description: Invalid status value
  *       403:
  *         description: Forbidden
  *       404:

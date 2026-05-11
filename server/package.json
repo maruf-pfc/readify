@@ -21,7 +21,7 @@
     "zod"
   ],
   "author": "Md. Maruf Sarker",
-  "license": "ISC",
+  "license": "Apache License",
   "private": true,
   "devDependencies": {
     "@eslint/js": "^10.0.1",

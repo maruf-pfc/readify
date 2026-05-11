@@ -4,9 +4,10 @@ import { z } from 'zod';
 
 // Zod schemas
 const idSchema = z.number().int().positive();
+
 const updateUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
-  role: z.enum(['CUSTOMER', 'ADMIN']).optional(),
+  role: z.enum(['CUSTOMER', 'STAFF', 'ADMIN']).optional(), // STAFF was missing
 });
 
 export const getAllUsers = async (_req: Request, res: Response, next: NextFunction) => {
